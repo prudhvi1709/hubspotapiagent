@@ -4,13 +4,101 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HubSpot API Agent</title>
+  <title>API Agent</title>
   <link rel="icon" href="https://raw.githubusercontent.com/gramener/assets/main/straive-favicon.svg">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+    crossorigin="anonymous">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <style>
     .narrative {
       max-width: 40rem;
+    }
+
+    .api-card {
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    .api-card:hover {
+      transform: translateY(-5px);
+    }
+
+    /* Two-column layout styles */
+    .two-column-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      height: 200vh; /* Fixed height for better visibility */
+    }
+
+    .conversation-container,
+    .result-container {
+      overflow-y: auto;
+      height: 100%;
+      padding: 0 10px;
+      scrollbar-width: thin;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    /* Ensure matching heights for messages with same step numbers */
+    .conversation-message,
+    .result-message {
+      width: 100%;
+      margin-bottom: 1rem;
+    }
+    
+    /* Add spacer elements to align result with developer messages */
+    .result-spacer {
+      visibility: hidden;
+      height: 0;
+      margin: 0;
+    }
+
+    .center-vertically {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .card[data-name="user"] .card-body {
+      display: flex;
+      align-items: flex-start;
+    }
+
+    /* Customize scrollbars */
+    .conversation-container::-webkit-scrollbar,
+    .result-container::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .conversation-container::-webkit-scrollbar-thumb,
+    .result-container::-webkit-scrollbar-thumb {
+      background: #6c757d;
+      border-radius: 3px;
+    }
+
+    .conversation-container::-webkit-scrollbar-track,
+    .result-container::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 3px;
+    }
+    @media (max-width: 768px) {
+      .two-column-layout {
+        grid-template-columns: 1fr;
+        height: auto;
+      }
+
+      .conversation-container,
+      .result-container {
+        height: 400px;
+        margin-bottom: 20px;
+      }
+
+      .result-container {
+        border-left: none;
+        border-top: 1px solid #dee2e6;
+      }
     }
   </style>
 </head>
@@ -19,19 +107,24 @@
 
   <nav class="navbar navbar-expand-lg bg-body-tertiary" data-bs-theme="dark">
     <div class="container-fluid">
-      <a class="navbar-brand" href=".">HubSpot API Agent</a>
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <a class="navbar-brand" href=".">API Agent</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent"
+        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
       </button>
       <div class="collapse navbar-collapse" id="navbarSupportedContent">
         <div class="nav-item dropdown ms-auto" role="group" aria-label="Toggle dark mode" title="Toggle Dark Mode">
-          <button class="dark-theme-toggle btn btn-outline-light dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Toggle theme (auto)">
+          <button class="dark-theme-toggle btn btn-outline-light dropdown-toggle" type="button"
+            data-bs-toggle="dropdown" aria-expanded="false" aria-label="Toggle theme (auto)">
             <i class="bi bi-circle-half"></i> <span class="d-lg-none ms-2">Toggle theme</span>
           </button>
           <ul class="dropdown-menu dropdown-menu-end">
-            <li><button class="dropdown-item" data-bs-theme-value="light"><i class="me-2 bi bi-sun-fill"></i> Light</button></li>
-            <li><button class="dropdown-item" data-bs-theme-value="dark"><i class="me-2 bi bi-moon-stars-fill"></i> Dark</button></li>
-            <li><button class="dropdown-item" data-bs-theme-value="auto"><i class="me-2 bi bi-circle-half"></i> Auto</button></li>
+            <li><button class="dropdown-item" data-bs-theme-value="light"><i class="me-2 bi bi-sun-fill"></i>
+                Light</button></li>
+            <li><button class="dropdown-item" data-bs-theme-value="dark"><i class="me-2 bi bi-moon-stars-fill"></i>
+                Dark</button></li>
+            <li><button class="dropdown-item" data-bs-theme-value="auto"><i class="me-2 bi bi-circle-half"></i>
+                Auto</button></li>
           </ul>
         </div>
       </div>
@@ -39,44 +132,46 @@
   </nav>
 
   <div class="container-fluid">
-    <h1 class="display-1 my-4 text-center">HubSpot API Agent</h1>
-    <h2 class="display-6 text-center">Chat with your HubSpot data</h2>
-    <div class="mx-auto my-3 narrative">
-      <p>HubSpot API Agent lets you interact with your HubSpot data through simple natural language questions. No need to write complex API calls or understand HubSpot's API structure.</p>
-      <p>With HubSpot API Agent, you can:</p>
-      <ul>
-        <li><strong>Access real-time HubSpot data</strong> from contacts, companies, deals, and more</li>
-        <li><strong>Automate HubSpot tasks</strong> that would normally require manual API calls</li>
-        <li><strong>Integrate information</strong> across different HubSpot objects and properties</li>
-      </ul>
-      <p>Marketing teams use HubSpot API Agent to analyze campaign performance and customer data without technical expertise. Sales teams use it to track deal progress and customer interactions. Developers use it to quickly prototype and test HubSpot API interactions without writing boilerplate code.</p>
-      <div class="list-group">
-        <button type="button" class="list-group-item list-group-item-action example-question">Which sales reps have the highest deal conversion rates?</button>
-        <button type="button" class="list-group-item list-group-item-action example-question">List my top 10 contacts by engagement score and their associated companies</button>
-        <button type="button" class="list-group-item list-group-item-action example-question">What companies have been created in HubSpot in the last 30 days?</button>
-        <button type="button" class="list-group-item list-group-item-action example-question">What's the sales pipeline health across all stages?</button>
-        <button type="button" class="list-group-item list-group-item-action example-question">What are the top-performing deals by amount or stage?</button>
-      </div>
+    <h1 class="display-1 my-4 text-center">API Agent</h1>
+    <h2 class="display-6 text-center">Chat with your API data</h2>
+
+    <!-- API cards container -->
+    <div id="api-cards" class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-4 mx-auto my-5" style="max-width: 80rem;">
+      <!-- API cards will be inserted here dynamically -->
     </div>
 
-    <form id="task-form" class="narrative mx-auto">
-      <div class="my-3">
-        <div class="mb-2">
-          <label for="hubspot-token" class="form-label d-flex justify-content-between">
-            <span>Hubspot Token<span class="text-danger"> *</span></span> <a href="https://developers.hubspot.com/docs/api/overview" target="_blank" rel="noopener">Get token <i class="bi bi-box-arrow-up-right"></i></a> </label>
-          <input type="password" class="form-control" id="hubspot-token" placeholder="Enter HubSpot token" required>
-        </div>
+    <div id="api-details" class="mx-auto my-3 narrative" style="display: none;">
+      <h3 id="selected-api-name" class="mb-4 text-center">API Name</h3>
+      <p id="api-description">API description goes here.</p>
+
+      <div class="list-group mb-4" id="question-list">
+        <!-- Questions will be populated dynamically -->
       </div>
-      <input type="text" class="form-control" name="task" id="task" placeholder="Enter a task">
 
-      <div id="submit-task" class="text-center"></div>
-    </form>
+      <form id="task-form" class="narrative mx-auto">
+        <div class="my-3">
+          <div class="mb-2">
+            <label id="token-label" for="api-token" class="form-label d-flex justify-content-between">
+              <span>API Token<span class="text-danger"> *</span></span>
+              <a id="token-help-url" href="#" target="_blank" rel="noopener">Get token <i
+                  class="bi bi-box-arrow-up-right"></i></a>
+            </label>
+            <input type="password" class="form-control" id="api-token" placeholder="Enter API token" required>
+          </div>
+        </div>
+        <input type="text" class="form-control" name="task" id="task" placeholder="Enter a task">
+        <div id="submit-task" class="text-center mt-3"></div>
+      </form>
+    </div>
 
-    <div id="results" class="container my-3"></div>
+    <div id="results" class="container my-3 two-column-layout">
+      <!-- The conversation-container and result-container will be created dynamically -->
+    </div>
   </div>
 
   <footer class="my-5 vh-100 d-flex align-items-center justify-content-center">
-    <h1 class="display-4">Designed by <a href="https://gramener.com/" class="text-reset link-offset-3 link-underline link-underline-opacity-25">Gramener</a></h1>
+    <h1 class="display-4">Designed by <a href="https://gramener.com/"
+        class="text-reset link-offset-3 link-underline link-underline-opacity-25">Gramener</a></h1>
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" type="module"></script>
