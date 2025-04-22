@@ -5,6 +5,24 @@ import { asyncLLM } from "https://cdn.jsdelivr.net/npm/asyncllm@2";
 import { Marked } from "https://cdn.jsdelivr.net/npm/marked@13/+esm";
 import hljs from "https://cdn.jsdelivr.net/npm/highlight.js@11/+esm";
 
+// Add styles for the scrollable panels
+const style = document.createElement('style');
+style.textContent = `
+  .scrollable-panel {
+    max-height: 80vh;
+    overflow-y: auto;
+    padding: 10px;
+  }
+  #results {
+    display: flex;
+    gap: 20px;
+  }
+  .conversation-container, .result-container {
+    flex: 1;
+  }
+`;
+document.head.appendChild(style);
+
 // Log in to LLMFoundry
 const LLMFOUNDRY = "https://llmfoundry.straive.com";
 const { token } = await fetch(`${LLMFOUNDRY}/token`, {
@@ -76,13 +94,23 @@ function selectApi(api) {
   // Rebuild the token label section completely
   const tokenLabelContainer = document.getElementById("token-label");
   if (tokenLabelContainer) {
+    // Only add the asterisk for APIs where token is required
+    const requiredAsterisk = (api.name === "GitHub" || api.name === "Stack Overflow") ? "" : '<span class="text-danger"> *</span>';
     tokenLabelContainer.innerHTML = `
-      <span>${api.tokenLabel}<span class="text-danger"> *</span></span> 
+      <span>${api.tokenLabel}${requiredAsterisk}</span> 
       <a href="${api.tokenHelpUrl}" target="_blank" rel="noopener" id="token-help-url">Get token <i class="bi bi-box-arrow-up-right"></i></a>
     `;
   }
 
   document.getElementById("api-token").placeholder = api.tokenPlaceholder;
+  
+  // Set required attribute based on API type
+  const tokenInput = document.getElementById("api-token");
+  if (api.name === "GitHub" || api.name === "Stack Overflow") {
+    tokenInput.removeAttribute("required");
+  } else {
+    tokenInput.setAttribute("required", "required");
+  }
 
   // Render questions
   render(
@@ -146,6 +174,13 @@ $taskForm.addEventListener("submit", async (e) => {
 
   if (!currentApi) {
     alert("Please select an API first");
+    return;
+  }
+
+  // Check if token is required but not provided
+  const tokenInput = document.getElementById("api-token");
+  if (currentApi.name !== "GitHub" && currentApi.name !== "Stack Overflow" && !tokenInput.value.trim()) {
+    alert(`${currentApi.name} API token is required`);
     return;
   }
 
@@ -283,8 +318,8 @@ function renderSteps(steps) {
   // Clear existing content and create containers if they don't exist
   if (!document.querySelector('.conversation-container')) {
     $results.innerHTML = `
-      <div class="conversation-container"></div>
-      <div class="result-container"></div>
+      <div class="conversation-container scrollable-panel"></div>
+      <div class="result-container scrollable-panel"></div>
     `;
   }
   
@@ -306,7 +341,7 @@ function renderSteps(steps) {
     
     if (name === "developer") {
       developerStepNum = stepNum;
-    } else if (name === "result" && developerStepNum !== null) {
+    } else if ((name === "result" || name === "error") && developerStepNum !== null) {
       alignmentMap.set(developerStepNum, stepNum);
       developerStepNum = null;
     }
@@ -357,119 +392,134 @@ function renderSteps(steps) {
       resultMessages.push({ stepNum, name, content, markdown, renderedContent, isTable });
     } else if (name === "error") {
       markdown = "```\n" + content + "\n```";
-      conversationMessages.push({ stepNum, name, content, markdown });
+      resultMessages.push({ stepNum, name, content, markdown });
     } else {
       markdown = content;
       conversationMessages.push({ stepNum, name, content, markdown });
     }
   });
   
-  // Helper function to create card elements
-  function createCard({ stepNum, name, markdown, renderedContent, isTable, alignsWith }) {
-    const cardElement = document.createElement('div');
-    const isResult = Boolean(renderedContent) || name === 'result';
+  // Build HTML strings for conversation and result containers
+  let conversationHTML = '';
+  let resultHTML = '';
+  
+  // Create conversation cards HTML
+  conversationMessages.forEach(message => {
+    const { stepNum, name, markdown, isTable = false } = message;
+    const iconClass = iconMap[name] || "bi-chat-dots";
     
-    cardElement.className = `card mb-3 ${isResult ? 'result-message' : 'conversation-message'} ${isTable ? 'table-result-card' : ''}`;
-    cardElement.dataset.stepNum = stepNum;
-    if (alignsWith) cardElement.dataset.alignsWith = alignsWith;
-    if (!isResult) cardElement.dataset.name = name;
-    
-    // Create card header
-    const cardHeader = document.createElement('div');
-    cardHeader.className = `card-header ${colorMap[name] || "bg-secondary"} text-white d-flex align-items-center`;
-    cardHeader.setAttribute('data-bs-toggle', 'collapse');
-    cardHeader.setAttribute('data-bs-target', `#${isResult ? 'result' : 'step'}-${stepNum}`);
-    cardHeader.setAttribute('role', 'button');
-    cardHeader.setAttribute('aria-expanded', 'true');
-    
-    // Add icon, badge, name and chevron
-    const iconClass = isTable ? "bi-table" : (iconMap[name] || "bi-chat-dots");
-    cardHeader.innerHTML = `
-      <i class="bi ${iconClass} me-2"></i>
-      <span class="badge bg-light text-dark me-2">${stepNum}</span>
-      <strong>${isTable ? "Table Results" : name}</strong>
-      ${isTable ? `<span class="ms-2 badge bg-light text-dark"><i class="bi bi-grid-3x3"></i> Data table</span>` : ''}
-      <i class="bi bi-chevron-down ms-auto"></i>
-    `;
-    
-    cardElement.appendChild(cardHeader);
-    
-    // Create collapse container with card body
-    const collapseId = `${isResult ? 'result' : 'step'}-${stepNum}`;
-    const bodyClass = `card-body ${isTable ? 'p-0 table-responsive' : ''}`;
-    
-    const bodyContent = renderedContent || (markdown ? marked.parse(markdown) : '');
-    
-    cardElement.innerHTML += `
-      <div class="collapse show" id="${collapseId}">
-        <div class="${bodyClass}">${bodyContent}</div>
+    conversationHTML += `
+      <div class="card mb-3 conversation-message" 
+           data-step-num="${stepNum}" 
+           data-name="${name}" 
+           id="conv-step-${stepNum}">
+        <div class="card-header ${colorMap[name] || "bg-secondary"} text-white d-flex align-items-center" 
+             data-bs-toggle="collapse" 
+             data-bs-target="#step-${stepNum}" 
+             role="button" 
+             aria-expanded="true">
+          <i class="bi ${iconClass} me-2"></i>
+          <span class="badge bg-light text-dark me-2">${stepNum}</span>
+          <strong>${name}</strong>
+          <i class="bi bi-chevron-down ms-auto"></i>
+        </div>
+        <div class="collapse show" id="step-${stepNum}">
+          <div class="card-body">${markdown ? marked.parse(markdown) : ''}</div>
+        </div>
       </div>
     `;
-    
-    return cardElement;
-  }
-  
-  // Render conversation messages
-  conversationMessages.forEach(message => {
-    const card = createCard(message);
-    conversationContainer.appendChild(card);
-    
-    // Add spacer if needed
-    if (message.name === "developer" && !alignmentMap.has(message.stepNum)) {
-      const spacer = document.createElement('div');
-      spacer.className = 'result-spacer';
-      spacer.dataset.alignsWithStep = message.stepNum;
-      resultContainer.appendChild(spacer);
-    }
   });
   
-  // Create a map to track which dev steps have corresponding results
-  const resultStepMap = new Map(resultMessages.map(msg => [msg.stepNum, msg]));
-  
-  // Render result messages with proper alignment
-  Array.from(alignmentMap.entries()).forEach(([devStepNum, resultStepNum]) => {
-    if (resultStepMap.has(resultStepNum)) {
-      const resultMsg = resultStepMap.get(resultStepNum);
-      const card = createCard({...resultMsg, alignsWith: devStepNum});
-      resultContainer.appendChild(card);
-    }
+  // Create result cards HTML
+  resultMessages.forEach(message => {
+    const { stepNum, name, markdown, renderedContent, isTable = false } = message;
+    const iconClass = isTable ? "bi-table" : (iconMap[name] || "bi-chat-dots");
+    const correspondingDevStep = [...alignmentMap.entries()]
+      .find(([devStep, resultStep]) => resultStep === stepNum)?.[0];
+    
+    resultHTML += `
+      <div class="card mb-3 result-message ${isTable ? 'table-result-card' : ''}" 
+           data-step-num="${stepNum}" 
+           id="result-step-${stepNum}"
+           ${correspondingDevStep ? `data-matches-conv-step="${correspondingDevStep}"` : ''}>
+        <div class="card-header ${colorMap[name] || "bg-secondary"} text-white d-flex align-items-center" 
+             data-bs-toggle="collapse" 
+             data-bs-target="#result-${stepNum}" 
+             role="button" 
+             aria-expanded="true">
+          <i class="bi ${iconClass} me-2"></i>
+          <span class="badge bg-light text-dark me-2">${stepNum}</span>
+          <strong>${isTable ? "Table Results" : name}</strong>
+          ${isTable ? `<span class="ms-2 badge bg-light text-dark"><i class="bi bi-grid-3x3"></i> Data table</span>` : ''}
+          <i class="bi bi-chevron-down ms-auto"></i>
+        </div>
+        <div class="collapse show" id="result-${stepNum}">
+          <div class="${isTable ? 'card-body p-0 table-responsive' : 'card-body'}">
+            ${renderedContent || (markdown ? marked.parse(markdown) : '')}
+          </div>
+        </div>
+      </div>
+    `;
   });
   
-  // Set up scroll synchronization
-  setupScrollSync();
-}
-
-// Function to handle scroll synchronization
-function setupScrollSync() {
-  const conversationContainer = document.querySelector('.conversation-container');
-  const resultContainer = document.querySelector('.result-container');
+  // Apply HTML to containers
+  conversationContainer.innerHTML = conversationHTML;
+  resultContainer.innerHTML = resultHTML;
   
-  if (!conversationContainer || !resultContainer) return;
+  // Add scroll synchronization
+  let isScrolling = false;
   
-  // Create an intersection observer to detect when developer cards become visible
-  const options = {
-    root: conversationContainer,
-    threshold: 0.5
-  };
-  
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting && entry.target.dataset.name === 'developer') {
-        // Find the step number
-        const stepNum = entry.target.dataset.stepNum;
-        // Find the corresponding result that aligns with this developer step
-        const resultMessage = resultContainer.querySelector(`.result-message[data-aligns-with="${stepNum}"]`);
-        
-        if (resultMessage) {
-          resultMessage.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  conversationContainer.addEventListener('scroll', function() {
+    if (isScrolling) return;
+    isScrolling = true;
+    
+    const visibleCards = [...conversationContainer.querySelectorAll('.conversation-message')]
+      .filter(card => {
+        const rect = card.getBoundingClientRect();
+        const containerRect = conversationContainer.getBoundingClientRect();
+        return rect.top >= containerRect.top && rect.top <= containerRect.bottom;
+      });
+    
+    if (visibleCards.length > 0) {
+      const visibleCard = visibleCards[0];
+      const stepNum = visibleCard.dataset.stepNum;
+      
+      if (visibleCard.dataset.name === 'developer') {
+        const matchingResultCard = resultContainer.querySelector(`[data-matches-conv-step="${stepNum}"]`);
+        if (matchingResultCard) {
+          matchingResultCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
       }
-    });
-  }, options);
+    }
+    
+    setTimeout(() => { isScrolling = false; }, 100);
+  });
   
-  // Observe all developer cards
-  document.querySelectorAll('.conversation-message[data-name="developer"]').forEach(card => {
-    observer.observe(card);
+  // Add reverse scroll synchronization
+  resultContainer.addEventListener('scroll', function() {
+    if (isScrolling) return;
+    isScrolling = true;
+    
+    const visibleResultCards = [...resultContainer.querySelectorAll('.result-message')]
+      .filter(card => {
+        const rect = card.getBoundingClientRect();
+        const containerRect = resultContainer.getBoundingClientRect();
+        return rect.top >= containerRect.top && rect.top <= containerRect.bottom;
+      });
+    
+    if (visibleResultCards.length > 0) {
+      const visibleCard = visibleResultCards[0];
+      const matchesConvStep = visibleCard.dataset.matchesConvStep;
+      
+      if (matchesConvStep) {
+        const matchingDevCard = conversationContainer.querySelector(`#conv-step-${matchesConvStep}`);
+        if (matchingDevCard) {
+          matchingDevCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }
+    }
+    
+    setTimeout(() => { isScrolling = false; }, 100);
   });
 }
 
@@ -478,55 +528,55 @@ function renderTableFromJSON(jsonArray) {
     return '<div class="alert alert-warning">No data available</div>';
   }
 
-  // Flatten JSON objects recursively
-  function flattenObject(obj, prefix = '') {
+  // Minimal flatten function
+  const flatten = (obj, prefix = '') => {
     return Object.keys(obj).reduce((acc, key) => {
       const prefixedKey = prefix ? `${prefix}.${key}` : key;
+      const value = obj[key];
       
-      if (typeof obj[key] === 'object' && obj[key] !== null) {
-        if (Array.isArray(obj[key])) {
-          // Handle arrays - convert to string
-          acc[prefixedKey] = JSON.stringify(obj[key]);
+      if (value && typeof value === 'object') {
+        if (Array.isArray(value)) {
+          acc[prefixedKey] = JSON.stringify(value);
         } else {
-          // Recursively flatten nested objects
-          Object.assign(acc, flattenObject(obj[key], prefixedKey));
+          Object.assign(acc, flatten(value, prefixedKey));
         }
       } else {
-        acc[prefixedKey] = obj[key];
+        acc[prefixedKey] = value;
       }
       
       return acc;
     }, {});
-  }
+  };
 
-  // Flatten all objects and collect unique keys
-  const flattenedData = jsonArray.map(item => flattenObject(item));
+  // Flatten the data
+  const flattenedData = jsonArray.map(item => flatten(item));
+  
+  // Get all unique keys
   const allKeys = Array.from(
     new Set(flattenedData.flatMap(item => Object.keys(item)))
   ).sort();
 
-  // Generate table HTML
-  let table = '<table class="table table-striped table-hover">\n';
+  // Use lit-html to render the table
+  const tableTemplate = document.createElement('div');
+  render(
+    html`
+      <table class="table table-striped table-hover">
+        <thead>
+          <tr>
+            ${allKeys.map(key => html`<th>${key}</th>`)}
+          </tr>
+        </thead>
+        <tbody>
+          ${flattenedData.map(row => html`
+            <tr>
+              ${allKeys.map(key => html`<td>${row[key] !== undefined ? row[key] : ''}</td>`)}
+            </tr>
+          `)}
+        </tbody>
+      </table>
+    `,
+    tableTemplate
+  );
   
-  // Table header
-  table += '<thead>\n<tr>\n';
-  allKeys.forEach(key => {
-    table += `<th>${key}</th>\n`;
-  });
-  table += '</tr>\n</thead>\n';
-  
-  // Table body
-  table += '<tbody>\n';
-  flattenedData.forEach(row => {
-    table += '<tr>\n';
-    allKeys.forEach(key => {
-      const value = row[key] !== undefined ? row[key] : '';
-      table += `<td>${value}</td>\n`;
-    });
-    table += '</tr>\n';
-  });
-  table += '</tbody>\n';
-  table += '</table>';
-  
-  return table;
+  return tableTemplate.innerHTML;
 }
