@@ -4,6 +4,7 @@ import { unsafeHTML } from "https://cdn.jsdelivr.net/npm/lit-html@3/directives/u
 import { asyncLLM } from "https://cdn.jsdelivr.net/npm/asyncllm@2";
 import { Marked } from "https://cdn.jsdelivr.net/npm/marked@13/+esm";
 import hljs from "https://cdn.jsdelivr.net/npm/highlight.js@11/+esm";
+import { getProfile } from "https://aipipe.org/aipipe.js";
 
 // Add styles for the scrollable panels
 const style = document.createElement('style');
@@ -23,13 +24,15 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
-// Log in to LLMFoundry
-const LLMFOUNDRY = "https://llmfoundry.straive.com";
-const { token } = await fetch(`${LLMFOUNDRY}/token`, {
-  credentials: "include",
-}).then((res) => res.json());
-const url =
-  `${LLMFOUNDRY}/login?` + new URLSearchParams({ next: location.href });
+// Log in to aipipe.org
+const { token, email } = getProfile();
+const url = `https://aipipe.org/login?redirect=${window.location.href}`;
+
+// Check if token exists and redirect if not
+if (!token) {
+  window.location = url;
+}
+
 render(
   token
     ? html`<button type="submit" class="btn btn-primary w-100">
@@ -198,11 +201,11 @@ $taskForm.addEventListener("submit", async (e) => {
       .replace(/ /g, "_")}_TOKEN`;
 
     for await (const { content } of asyncLLM(
-      `${LLMFOUNDRY}/openai/v1/chat/completions`,
+      `https://aipipe.org/openrouter/v1/chat/completions`,
       {
         ...request,
         body: JSON.stringify({
-          model: "gpt-4o-mini",
+          model: "openai/gpt-4.1-nano",
           stream: true,
           messages: [
             {
@@ -261,11 +264,11 @@ $taskForm.addEventListener("submit", async (e) => {
     };
     messages.push(validationMessage);
     for await (const { content } of asyncLLM(
-      `${LLMFOUNDRY}/openai/v1/chat/completions`,
+      `https://aipipe.org/openrouter/v1/chat/completions`,
       {
         ...request,
         body: JSON.stringify({
-          model: "gpt-4o-mini",
+          model: "openai/gpt-4.1-nano",
           stream: true,
           messages: [
             {
@@ -273,7 +276,7 @@ $taskForm.addEventListener("submit", async (e) => {
               content: `The user provided a task related to ${currentApi.name} API. An assistant generated code. The user ran it. These are provided to you.
 
 Check if the code:
-1. Used the correct proxy pattern: https://llmfoundry.straive.com/-/proxy/...
+1. Used the correct proxy pattern: https://aipipe.org/-/proxy/...
 2. Included proper Authorization headers with the correct token format
 3. Properly handled errors and HTTP status codes
 4. Successfully completed the requested task
