@@ -23,38 +23,6 @@
       transform: translateY(-5px);
     }
 
-    /* Two-column layout styles */
-    .two-column-layout {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 20px;
-      height: 200vh; /* Fixed height for better visibility */
-    }
-
-    .conversation-container,
-    .result-container {
-      overflow-y: auto;
-      height: 100%;
-      padding: 0 10px;
-      scrollbar-width: thin;
-      display: flex;
-      flex-direction: column;
-    }
-    
-    /* Ensure matching heights for messages with same step numbers */
-    .conversation-message,
-    .result-message {
-      width: 100%;
-      margin-bottom: 1rem;
-    }
-    
-    /* Add spacer elements to align result with developer messages */
-    .result-spacer {
-      visibility: hidden;
-      height: 0;
-      margin: 0;
-    }
-
     .center-vertically {
       display: flex;
       flex-direction: column;
@@ -64,41 +32,6 @@
     .card[data-name="user"] .card-body {
       display: flex;
       align-items: flex-start;
-    }
-
-    /* Customize scrollbars */
-    .conversation-container::-webkit-scrollbar,
-    .result-container::-webkit-scrollbar {
-      width: 6px;
-    }
-
-    .conversation-container::-webkit-scrollbar-thumb,
-    .result-container::-webkit-scrollbar-thumb {
-      background: #6c757d;
-      border-radius: 3px;
-    }
-
-    .conversation-container::-webkit-scrollbar-track,
-    .result-container::-webkit-scrollbar-track {
-      background: #f1f1f1;
-      border-radius: 3px;
-    }
-    @media (max-width: 768px) {
-      .two-column-layout {
-        grid-template-columns: 1fr;
-        height: auto;
-      }
-
-      .conversation-container,
-      .result-container {
-        height: 400px;
-        margin-bottom: 20px;
-      }
-
-      .result-container {
-        border-left: none;
-        border-top: 1px solid #dee2e6;
-      }
     }
   </style>
 </head>
@@ -163,7 +96,7 @@
       </form>
     </div>
 
-    <div id="results" class="container my-3 two-column-layout">
+    <div id="results" class="container-fluid my-3 vh-100">
       <!-- The conversation-container and result-container will be created dynamically -->
     </div>
   </div>

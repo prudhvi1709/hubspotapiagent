@@ -321,8 +321,14 @@ function renderSteps(steps) {
   // Clear existing content and create containers if they don't exist
   if (!document.querySelector('.conversation-container')) {
     $results.innerHTML = `
-      <div class="conversation-container scrollable-panel"></div>
-      <div class="result-container scrollable-panel"></div>
+      <div class="row vh-100">
+        <div class="col-md-6 h-100 overflow-auto pe-md-0">
+          <div class="conversation-container h-100 overflow-auto border-end"></div>
+        </div>
+        <div class="col-md-6 h-100 overflow-auto ps">
+          <div class="result-container h-100 overflow-auto"></div>
+        </div>
+      </div>
     `;
   }
   
