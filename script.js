@@ -24,22 +24,11 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
-// Log in to aipipe.org
-const { token, email } = getProfile();
-const url = `https://aipipe.org/login?redirect=${window.location.href}`;
-
-// Check if token exists and redirect if not
-if (!token) {
-  window.location = url;
-}
-
 render(
-  token
-    ? html`<button type="submit" class="btn btn-primary w-100">
-        <i class="bi bi-arrow-right"></i>
-        Submit
-      </button>`
-    : html`<a class="btn btn-primary w-100" href="${url}">Log in to try your own queries</a></p>`,
+  html`<button type="submit" class="btn btn-primary w-100">
+    <i class="bi bi-arrow-right"></i>
+    Submit
+  </button>`,
   document.querySelector("#submit-task")
 );
 
@@ -98,7 +87,7 @@ function selectApi(api) {
   const tokenLabelContainer = document.getElementById("token-label");
   if (tokenLabelContainer) {
     // Only add the asterisk for APIs where token is required
-    const requiredAsterisk = (api.name === "GitHub" || api.name === "Stack Overflow") ? "" : '<span class="text-danger"> *</span>';
+    const requiredAsterisk = (api.name === "GitHub" || api.name === "Stack Overflow" || api.name === "Crossref") ? "" : '<span class="text-danger"> *</span>';
     tokenLabelContainer.innerHTML = `
       <span>${api.tokenLabel}${requiredAsterisk}</span> 
       <a href="${api.tokenHelpUrl}" target="_blank" rel="noopener" id="token-help-url">Get token <i class="bi bi-box-arrow-up-right"></i></a>
@@ -149,9 +138,9 @@ function selectApi(api) {
 const request = {
   method: "POST",
   headers: {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json"
   },
+  credentials: "include"
 };
 
 const marked = new Marked();
@@ -182,7 +171,7 @@ $taskForm.addEventListener("submit", async (e) => {
 
   // Check if token is required but not provided
   const tokenInput = document.getElementById("api-token");
-  if (currentApi.name !== "GitHub" && currentApi.name !== "Stack Overflow" && !tokenInput.value.trim()) {
+  if (currentApi.name !== "GitHub" && currentApi.name !== "Stack Overflow" && currentApi.name !== "Crossref" && !tokenInput.value.trim()) {
     alert(`${currentApi.name} API token is required`);
     return;
   }
@@ -201,11 +190,12 @@ $taskForm.addEventListener("submit", async (e) => {
       .replace(/ /g, "_")}_TOKEN`;
 
     for await (const { content } of asyncLLM(
-      `https://aipipe.org/openrouter/v1/chat/completions`,
+      `https://llmfoundry.straive.com/openai/v1/chat/completions`,
       {
         ...request,
+        credentials: "include",
         body: JSON.stringify({
-          model: "openai/gpt-4.1-nano",
+          model: "gpt-4.1-mini",
           stream: true,
           messages: [
             {
@@ -264,11 +254,12 @@ $taskForm.addEventListener("submit", async (e) => {
     };
     messages.push(validationMessage);
     for await (const { content } of asyncLLM(
-      `https://aipipe.org/openrouter/v1/chat/completions`,
+      `https://llmfoundry.straive.com/openai/v1/chat/completions`,
       {
         ...request,
+        credentials: "include",
         body: JSON.stringify({
-          model: "openai/gpt-4.1-nano",
+          model: "gpt-4.1-mini",
           stream: true,
           messages: [
             {
@@ -276,7 +267,7 @@ $taskForm.addEventListener("submit", async (e) => {
               content: `The user provided a task related to ${currentApi.name} API. An assistant generated code. The user ran it. These are provided to you.
 
 Check if the code:
-1. Used the correct proxy pattern: https://aipipe.org/-/proxy/...
+1. Used the correct proxy pattern: https://llmfoundry.straive.com/-/proxy/...
 2. Included proper Authorization headers with the correct token format
 3. Properly handled errors and HTTP status codes
 4. Successfully completed the requested task
