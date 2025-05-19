@@ -98,7 +98,7 @@ function selectApi(api) {
   
   // Set required attribute based on API type
   const tokenInput = document.getElementById("api-token");
-  if (api.name === "GitHub" || api.name === "Stack Overflow") {
+  if (api.name === "GitHub" || api.name === "Stack Overflow" || api.name === "Crossref") {
     tokenInput.removeAttribute("required");
   } else {
     tokenInput.setAttribute("required", "required");
