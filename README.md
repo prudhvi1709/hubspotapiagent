@@ -79,3 +79,6 @@ This application uses modern ES modules and requires no build process. The main 
 ## License
 
 [MIT License](LICENSE)
+
+---
+> **This is Demo. contains no confidential data/IP**
